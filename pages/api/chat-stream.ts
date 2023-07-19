@@ -59,8 +59,9 @@ export default async function handler(
 
         const result = await chain.call({
             question,
-            chat_history: formayHistory(chatHistory),
+            chat_history: formatHistory(chatHistory),
         });
+
         chatHistory.push([question, result.answer]);
 
         sendResponse({ sender: 'bot', message: '', type: 'end' });

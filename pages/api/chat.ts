@@ -3,7 +3,11 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib'; // https://js.langchain.com/docs/api/vectorstores_hnswlib/classes/HNSWLib
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { formatHistory, makeChain } from './util';
+import {
+  formatHistory,
+  makeConversationalRetrievalQAChain as makeChain,
+  //makeVectorDBQAChain as makeChain,
+} from './util';
 
 export default async function handler(
   req: NextApiRequest,
@@ -37,6 +41,10 @@ export default async function handler(
 
   try {
     await chain.call({
+      // Required for VectorDBQAChain
+      //query: body.question,
+
+      // Required for ConversationalRetrievalQAChain
       question: body.question,
       chat_history: formatHistory(body.history),
     });

@@ -1,51 +1,74 @@
 import { OpenAI } from 'langchain/llms/openai';
 import { ChatOpenAI } from 'langchain/chat_models/openai';
 import {
-  LLMChain,
   ConversationalRetrievalQAChain,
+  LLMChain,
+  StuffDocumentsChain,
+  VectorDBQAChain,
   loadQAChain,
 } from 'langchain/chains';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib';
 import {
-  ChatPromptTemplate,
-  HumanMessagePromptTemplate,
-  MessagesPlaceholder,
   PromptTemplate,
+  ChatPromptTemplate,
   SystemMessagePromptTemplate,
+  HumanMessagePromptTemplate,
 } from 'langchain/prompts';
 import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
 
-const questionGeneratorChainPrompt = ChatPromptTemplate.fromPromptMessages(
-  [
-    SystemMessagePromptTemplate.fromTemplate(
-    `Given the following conversation between a user and an assistant, rephrase the last question from the user to be a standalone question.`
-    ),
-    new MessagesPlaceholder('chat_history'),
-    HumanMessagePromptTemplate.fromTemplate(`Last question: {question}`),
-  ],
-);
+const DEFAULT_QA_PROMPT = new PromptTemplate({
+  template: `Use the following pieces of context to answer the users question. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:`,
+  inputVariables: ['context', 'question'],
+});
 
-const QA_PROMPT_TEMPLATE = `
-You are an AI assistant for the Tonic UI component library. The documentation is located at https://trendmicro-frontend.github.io/tonic-ui/react/latest.
-You are given the following extracted parts of a long document and a question. Provide a conversational answer with a hyperlink to the documentation.
-You should only use hyperlinks that are explicitly listed as a source in the context. Do NOT make up a hyperlink that is not listed.
-If the question includes a request for code, provide a code block directly from the documentation.
-If you don't know the answer, just say 'Hmm, I'm not sure.' Don't try to make up an answer.
-If the question is not about Tonic UI component library, politely inform them that you are tuned to only answer questions about Tonic UI component library.
-Question: {question}
-=========
-{context}
-=========
-Answer in Markdown:
+const TONIC_ONE_SYSTEM_MESSAGE_PROMPT_TEMPLATE = `Your name is Tonic One, an innovative AI companion designed to empower frontend developers in mastering the Tonic UI component library. You provide instant guidance, real-time examples, and AI-powered enhancements.
+You are given the following extracted parts of a long document and a question. You can return the corresponding path of the metadata that matches the response message from the given context. If you cannot find the path, don't try to make up a path that you don't know.
+----------------
+{context}`;
+const TONIC_ONE_HUMAN_MESSAGE_PROMPT_TEMPLATE = '{question}';
+
+const TONIC_ONE_CHAT_PROMPT = ChatPromptTemplate.fromPromptMessages([
+  SystemMessagePromptTemplate.fromTemplate(TONIC_ONE_SYSTEM_MESSAGE_PROMPT_TEMPLATE),
+  HumanMessagePromptTemplate.fromTemplate(TONIC_ONE_HUMAN_MESSAGE_PROMPT_TEMPLATE),
+]);
+
+const QUESTION_GENERATOR_CHAIN_PROMPT_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
+
+Chat history:
+{chat_history}
+Follow up input: {question}
+Standalone question:
 `;
 
-export const makeChain = (
+class CustomStuffDocumentsChain extends StuffDocumentsChain {
+  // @see langchain/dist/chains/combine_docs_chain.js
+  _prepInputs(values) {
+    if (!(this.inputKey in values)) {
+      throw new Error(`Document key ${this.inputKey} not found.`);
+    }
+    const { [this.inputKey]: docs, ...rest } = values;
+    const texts = docs.map(({ pageContent, metadata }) => {
+      const { source: path } = metadata;
+      return `Metadata\n---\npath: ${path}\n---\n${pageContent}`;
+    });
+    const text = texts.join("\n\n");
+
+    return {
+      ...rest,
+      [this.documentVariableName]: text,
+    };
+  }
+};
+
+export const makeConversationalRetrievalQAChain = (
   vectorStore: HNSWLib,
   onTokenStream?: (token: string) => Promise<void>
 ) => {
-  const qaChain = loadQAChain(
-    // llm
-    new ChatOpenAI({
+  // https://github.com/hwchase17/langchainjs/blob/main/langchain/src/chains/conversational_retrieval_chain.ts
+  const retriever = vectorStore.asRetriever();
+
+  const llmChain = new LLMChain({
+    llm: new ChatOpenAI({
       azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME_GPT,
       temperature: 0,
       streaming: Boolean(onTokenStream),
@@ -57,30 +80,51 @@ export const makeChain = (
         },
       ],
     }),
-    // params
-    {
-      type: 'stuff',
-      prompt: PromptTemplate.fromTemplate(QA_PROMPT_TEMPLATE),
-      //verbose: true,
-    }
-  );
+    prompt: TONIC_ONE_CHAT_PROMPT, // One of: DEFAULT_QA_PROMPT, TONIC_ONE_CHAT_PROMPT
+    verbose: false,
+  });
+  const combineDocumentsChain = new CustomStuffDocumentsChain({ llmChain, verbose: false });
 
   const questionGeneratorChain = new LLMChain({
-    llm: new OpenAI({
+    llm: new ChatOpenAI({
       azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME_GPT,
       temperature: 0,
     }),
-    prompt: questionGeneratorChainPrompt,
-    //verbose: true,
+    prompt: PromptTemplate.fromTemplate(QUESTION_GENERATOR_CHAIN_PROMPT_TEMPLATE),
   });
 
   return new ConversationalRetrievalQAChain({
-    retriever: vectorStore.asRetriever(),
-    combineDocumentsChain: qaChain,
+    retriever,
+    combineDocumentsChain,
     questionGeneratorChain,
+    returnSourceDocuments: true,
+    verbose: true, 
+  });
+};
+
+export const makeVectorDBQAChain = (
+  vectorStore: HNSWLib,
+  onTokenStream?: (token: string) => Promise<void>
+) => {
+  const llm = new ChatOpenAI({
+    azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME_GPT,
+    temperature: 0,
+    streaming: Boolean(onTokenStream),
+    callbacks: [
+      {
+        handleLLMNewToken: (token) => {
+          onTokenStream?.(token);
+        },
+      },
+    ],
+  });
+
+  const chain = VectorDBQAChain.fromLLM(llm, vectorStore, {
     returnSourceDocuments: true,
     verbose: true,
   });
+
+  return chain;
 }
 
 export const formatHistory = (history: [string, string][]) =>
