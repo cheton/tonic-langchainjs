@@ -11,6 +11,6 @@ const embeddings = new OpenAIEmbeddings({
 });
 const vectorStore = await HNSWLib.load(dir, embeddings);
 
-const result = await vectorStore.similaritySearch('Demonstrate how to use the `sx` prop', 1);
+const result = await vectorStore.similaritySearch('Demonstrate how to use the `sx` prop', 3);
 
 console.log(result);
