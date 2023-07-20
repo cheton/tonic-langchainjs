@@ -21,6 +21,8 @@ export default async function handler(
   const vectorstore = await HNSWLib.load(dir, embeddings);
 
   res.writeHead(200, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
     'Content-Type': 'text/event-stream',
     // Important to set no-transform to avoid compression, which will delay
     // writing response chunks to the client.
