@@ -5,7 +5,12 @@ import type { Server as HttpsServer } from 'https';
 import { WebSocketServer } from 'ws';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib'; // https://js.langchain.com/docs/api/vectorstores_hnswlib/classes/HNSWLib
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { formatHistory, makeChain } from './util';
+import {
+  formatHistory,
+  //makeRetrievalQAChain as makeChain,
+  makeConversationalRetrievalQAChain as makeChain,
+  //makeVectorDBQAChain as makeChain,
+} from './util';
 
 export default async function handler(
   req: NextApiRequest,
@@ -58,8 +63,15 @@ export default async function handler(
         const chain = await chainPromise;
 
         const result = await chain.call({
-            question,
-            chat_history: formatHistory(chatHistory),
+          // Required for VectorDBQAChain
+          //query: question,
+
+          // Required for RetrievalQAChain
+          //query: question,
+
+          // Required for ConversationalRetrievalQAChain
+          question: question,
+          chat_history: formatHistory(chatHistory),
         });
 
         chatHistory.push([question, result.answer]);

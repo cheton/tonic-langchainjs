@@ -5,6 +5,7 @@ import { HNSWLib } from 'langchain/vectorstores/hnswlib'; // https://js.langchai
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import {
   formatHistory,
+  //makeRetrievalQAChain as makeChain,
   makeConversationalRetrievalQAChain as makeChain,
   //makeVectorDBQAChain as makeChain,
 } from './util';
@@ -21,8 +22,8 @@ export default async function handler(
   const vectorstore = await HNSWLib.load(dir, embeddings);
 
   res.writeHead(200, {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': '*',
+    //'Access-Control-Allow-Origin': '*',
+    //'Access-Control-Allow-Headers': '*',
     'Content-Type': 'text/event-stream',
     // Important to set no-transform to avoid compression, which will delay
     // writing response chunks to the client.
@@ -42,13 +43,21 @@ export default async function handler(
   });
 
   try {
+    const {
+      question,
+      history: chatHistory,
+    } = body;
+
     await chain.call({
       // Required for VectorDBQAChain
-      //query: body.question,
+      //query: question,
+
+      // Required for RetrievalQAChain
+      //query: question,
 
       // Required for ConversationalRetrievalQAChain
-      question: body.question,
-      chat_history: formatHistory(body.history),
+      question: question,
+      chat_history: formatHistory(chatHistory),
     });
   } catch (err) {
     console.error(err);
