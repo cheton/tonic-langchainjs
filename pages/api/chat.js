@@ -1,5 +1,4 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import type { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib'; // https://js.langchain.com/docs/api/vectorstores_hnswlib/classes/HNSWLib
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
@@ -10,10 +9,7 @@ import {
   //makeVectorDBQAChain as makeChain,
 } from './util';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req, res) {
   const body = req.body;
   const dir = path.resolve(process.cwd(), 'data');
   const embeddings = new OpenAIEmbeddings({
@@ -32,13 +28,13 @@ export default async function handler(
     Connection: 'keep-alive',
   });
 
-  const sendData = (data: string) => {
+  const sendData = (data) => {
     res.write(`data: ${data}\n\n`);
   };
 
   sendData(JSON.stringify({ data: '' }));
 
-  const chain = makeChain(vectorstore, (token: string) => {
+  const chain = makeChain(vectorstore, (token) => {
     sendData(JSON.stringify({ data: token }));
   });
 

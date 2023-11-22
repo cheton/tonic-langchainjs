@@ -1,7 +1,4 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import type { NextApiRequest, NextApiResponse } from 'next';
-import type { Server as HttpServer } from 'http';
-import type { Server as HttpsServer } from 'https';
 import { WebSocketServer } from 'ws';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib'; // https://js.langchain.com/docs/api/vectorstores_hnswlib/classes/HNSWLib
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
@@ -13,17 +10,17 @@ import {
 } from './util';
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
+  req,
+  res,
 ) {
-  if ((res.socket as any).server.wss) {
+  if (res.socket.server.wss) {
     res.end();
     return;
   }
 
-  const server = (res.socket as any).server as HttpsServer | HttpServer;
+  const server = res.socket.server;
   const wss = new WebSocketServer({ noServer: true });
-  (res.socket as any).server.wss = wss;
+  res.socket.server.wss = wss;
   
   server.on('upgrade', (req, socket, head) => {
     if (!req.url?.includes('/_next/webpack-hmr')) {
@@ -34,11 +31,11 @@ export default async function handler(
   });
 
   wss.on('connection', (ws) => {
-    const sendResponse = ({ sender, message, type }: { sender: string, message: string, type: string }) => {
+    const sendResponse = ({ sender, message, type }) => {
       ws.send(JSON.stringify({ sender, message, type }));
     };
 
-    const onNewToken = (token: string) => {
+    const onNewToken = (token) => {
       sendResponse({
         sender: 'bot',
         message: token,
@@ -51,7 +48,7 @@ export default async function handler(
     });
     const chainPromise = HNSWLib.load('data', embeddings).then((vs) => makeChain(vs, onNewToken));
 
-    const chatHistory: [string, string][] = [];
+    const chatHistory = [];
     const encoder = new TextEncoder();
 
     ws.on('message', async (data) => {

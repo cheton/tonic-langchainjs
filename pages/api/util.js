@@ -65,15 +65,15 @@ class CustomStuffDocumentsChain extends StuffDocumentsChain {
  * https://js.langchain.com/docs/modules/chains/popular/vector_db_qa/
  */
 export const makeRetrievalQAChain = (
-  vectorStore: HNSWLib,
-  onTokenStream?: (token: string) => Promise<void>
+  vectorStore,
+  onTokenStream,
 ) => {
   const retriever = vectorStore.asRetriever();
 
   const llmChain = new LLMChain({
     llm: new ChatOpenAI({
       azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME_GPT,
-      temperature: 0,
+      temperature: 0.7,
       streaming: Boolean(onTokenStream),
       callbacks: [
         {
@@ -105,10 +105,7 @@ export const makeRetrievalQAChain = (
  *
  * @see https://github.com/hwchase17/langchainjs/blob/main/langchain/src/chains/conversational_retrieval_chain.ts
  */
-export const makeConversationalRetrievalQAChain = (
-  vectorStore: HNSWLib,
-  onTokenStream?: (token: string) => Promise<void>
-) => {
+export const makeConversationalRetrievalQAChain = (vectorStore, onTokenStream) => {
   const retriever = vectorStore.asRetriever();
 
   const llmChain = new LLMChain({
@@ -163,10 +160,7 @@ export const makeConversationalRetrievalQAChain = (
   });
 };
 
-export const makeVectorDBQAChain = (
-  vectorStore: HNSWLib,
-  onTokenStream?: (token: string) => Promise<void>
-) => {
+export const makeVectorDBQAChain = (vectorStore, onTokenStream) => {
   const llm = new ChatOpenAI({
     azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME_GPT,
     temperature: 0,
@@ -188,5 +182,5 @@ export const makeVectorDBQAChain = (
   return chain;
 }
 
-export const formatHistory = (history: [string, string][]) =>
+export const formatHistory = (history) => 
   history.flatMap(([q, a]) => [new HumanChatMessage(q), new AIChatMessage(a)]);
