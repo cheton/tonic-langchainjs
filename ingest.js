@@ -137,14 +137,11 @@ export const run = async () => {
       });
       const loader = new ReadTheDocsLoader();
       const docs = await loader.load(path.join(baseDir, 'pages'), [
-        '**/components/table/*.mdx',
-        //'**/*.mdx',
+        '**/*.mdx',
       ]);
       return splitter.splitMDXDocuments(docs);
     })()
   );
-
-  console.log(docs);
 
   const metadata = docs.reduce((acc, doc) => {
     const source = doc.metadata.source;
