@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import dotenv from 'dotenv';
 import { HNSWLib } from 'langchain/vectorstores/hnswlib';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import {
@@ -13,11 +14,16 @@ import { TextLoader } from 'langchain/document_loaders/fs/text';
 import { Document } from 'langchain/document';
 import { BaseDocumentLoader } from 'langchain/document_loaders/base';
 import micromatch from 'micromatch';
+import { TonicUITextSplitter } from './tonic-ui-text-splitter.js';
+
+dotenv.config({
+  path: path.join(process.cwd(), '.env'),
+});
 
 const baseDir = 'tonic-ui/packages/react-docs/';
 
-async function processFile(filePath: string): Promise<Document> {
-  return await new Promise<Document>((resolve, reject) => {
+async function processFile(filePath) {
+  return await new Promise((resolve, reject) => {
     fs.readFile(filePath, 'utf8', (err, data) => {
       if (err) {
         reject(err);
@@ -36,9 +42,9 @@ async function processFile(filePath: string): Promise<Document> {
   });
 }
 
-async function processDirectory(directoryPath: string, patterns: string[]): Promise<Document[]> {
-  const docs: Document[] = [];
-  let files: string[];
+async function processDirectory(directoryPath, patterns, options) {
+  const docs = [];
+  let files = [];
   try {
     files = fs.readdirSync(directoryPath);
   } catch (err) {
@@ -55,7 +61,7 @@ async function processDirectory(directoryPath: string, patterns: string[]): Prom
       const nestedDocs = await newDocs;
       docs.push(...nestedDocs);
     } else {
-      const isMatched = micromatch(filePath, patterns, { basename: true }).length > 0;
+      const isMatched = micromatch(filePath, patterns, options).length > 0;
       if (isMatched) {
         const newDoc = processFile(filePath);
         const doc = await newDoc;
@@ -67,8 +73,8 @@ async function processDirectory(directoryPath: string, patterns: string[]): Prom
 }
 
 class ReadTheDocsLoader extends BaseDocumentLoader {
-  async load(directoryPath, patterns): Promise<Document[]> {
-    return await processDirectory(directoryPath, patterns);
+  async load(directoryPath, patterns, options) {
+    return await processDirectory(directoryPath, patterns, options);
   }
 }
 
@@ -78,6 +84,7 @@ export const run = async () => {
   let docs = [];
 
   // config/**/*.js
+  /*
   docs = docs.concat(
     await (async () => {
       const splitter = new RecursiveCharacterTextSplitter({
@@ -93,71 +100,51 @@ export const run = async () => {
       return await splitter.splitDocuments(docs);
     })()
   );
+  */
 
   // pages/**/*.js
-  docs = docs.concat(
-    await (async () => {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-        keepSeparator: true,
-        separators: RecursiveCharacterTextSplitter.getSeparatorsForLanguage('js'),
-      });
-      const loader = new ReadTheDocsLoader();
-      const docs = await loader.load(path.join(baseDir, 'pages'), [
-        '*.js',
-        '!_app.js',
-        '!_document.js',
-        '!index.js',
-        '!404.js',
-        '!500.js',
-      ]);
-      return await splitter.splitDocuments(docs);
-    })()
-  );
+  const parseJavaScriptFiles = false;
+  if (parseJavaScriptFiles) {
+    docs = docs.concat(
+      await (async () => {
+        const splitter = new RecursiveCharacterTextSplitter({
+          chunkSize: 1000,
+          chunkOverlap: 0,
+          keepSeparator: true,
+          separators: RecursiveCharacterTextSplitter.getSeparatorsForLanguage('js'),
+        });
+        const loader = new ReadTheDocsLoader();
+        const docs = await loader.load(path.join(baseDir, 'pages'),
+          [
+            '**/*.js',
+            '!**/api/*.js',
+            '!**/index.page.js',
+            '!**/_app.page.js',
+            '!**/_document.page.js',
+            '!**/404.page.js',
+          ]
+        );
+        return await splitter.splitDocuments(docs);
+      })()
+    );
+  }
 
   // pages/**/*.mdx
   docs = docs.concat(
     await (async () => {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkOverlap: 200, // defaults to 200
-        chunkSize: 2000, // defaults to 1000
-        keepSeparator: true,
-        separators: [
-          // Split along headings
-          '\n###### ',
-          '\n##### ',
-          '\n#### ',
-          '\n### ',
-          '\n## ',
-          '\n# ',
-
-          // Start of code block
-          '\n```jsx',
-          '\n```js',
-
-          // End of code block
-          '\n```\n\n',
-
-          // Split by horizontal lines
-          '\n\n***\n\n',
-          '\n\n---\n\n',
-          '\n\n___\n\n',
-
-          // Split by the normal type of lines
-          '\n\n',
-          '\n',
-          ' ',
-          '',
-        ],
+      const splitter = new TonicUITextSplitter({
+        rootdir: './tonic-ui/packages/react-docs/',
       });
       const loader = new ReadTheDocsLoader();
       const docs = await loader.load(path.join(baseDir, 'pages'), [
-        '*.mdx',
+        '**/components/table/*.mdx',
+        //'**/*.mdx',
       ]);
-      return splitter.splitDocuments(docs);
+      return splitter.splitMDXDocuments(docs);
     })()
   );
+
+  console.log(docs);
 
   const metadata = docs.reduce((acc, doc) => {
     const source = doc.metadata.source;
@@ -181,7 +168,7 @@ export const run = async () => {
   const vectorStore = await HNSWLib.fromDocuments(docs, embeddings);
 
   console.log('Saving vector store to disk...');
-  await vectorStore.save('data');
+  await vectorStore.save('data-final');
 };
 
 (async () => {
