@@ -10,7 +10,7 @@
     "start": "next start -p 8080",
     "lint": "next lint",
     "download": "sh download.sh",
-    "ingest": "tsx -r dotenv/config ingest.ts"
+    "ingest": "node ingest"
   },
   "dependencies": {
     "@emotion/react": "^11.10.5",
@@ -19,6 +19,7 @@
     "@mui/material": "^5.11.4",
     "@next/font": "13.1.6",
     "dotenv": "^16.0.3",
+    "ensure-type": "^1.5.1",
     "eslint": "8.34.0",
     "eslint-config-next": "13.1.6",
     "hnswlib-node": "^1.4.2",
