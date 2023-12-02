@@ -24,7 +24,7 @@ Tonic UI is the essential UI component library for the Trend Micro Vision One pl
 
 Facing the reality, conventional search is inadequate to meet diverse today's user needs.
 
-But fear not! Tonic one steps into rescure Tonic UI development.
+But fear not! Tonic one steps into rescue Tonic UI development.
 
 Tonic One covers a wide range of Tonic UI components and featured examples. It can significant enhance developer experience with versatile support in various scenarios:
 - Instance Guidance for problem solving
@@ -42,19 +42,18 @@ However, the real challenge lies in prompt engineering. How can you create a pr
 
 In the demo, we presented an example of "Showcasing a table scrollbar with 100 rows of data.". How can we enhance the result for a better outcome?
 
-Now, utilize GPT-4 Vision to analyze your UI prototype. Ask GPT-4V to act as a UI designer and provide a basic structure for the UI.
+Now, utilize GPT-4 Vision to analyze your UI prototype. Ask GPT-4 Vision to act as a UI designer and provide a basic structure for the UI.
 
 Next, extract the structure from the markdown and input it into the prompt. Let Tonic One assist in generating the desired outcome.
 
 You can open the generated outcome in CodeSandbox
 
 There are three key features in Tonic One: code suggestions, on-the-fly documentation insights, and interactive mentorship interface.
-It can not only increase development time efficients through AI-powered support, but also enhance the overall development experience.
-"So, what's next? It's from design to code.
+It can not only increase development time efficiencies through AI-powered support, but also enhance the overall development experience.
 
+So, what's next? It's from design to code.
 Imagine a future where developers can input a simple UI design prototype and generate the corresponding code utilizing the Tonic UI component library or other alternatives.
-
-By combining GPT-4V, Figma Design, and Tonic One, it will be a powerful trio that unlocks the potential to effortlessly translate design ideas into functional Tonic UI sample applications.
+By combining GPT-4 Vision, Figma Design, and Tonic One, it will be a powerful trio that unlocks the potential to effortlessly translate design ideas into functional Tonic UI sample applications.
 
 Tonic One is a comprehensive AI mentor, enabling developers to boost their work.
 Lets embrace the future of front-end development.
